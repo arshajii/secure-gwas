@@ -1800,29 +1800,31 @@ bool gwas_protocol(MPCEnv& mpc, int pid) {
 
       mpc.ProfilerPushState("file_io");
       ifs.open(cache(pid, "pca_input").c_str(), ios::in | ios::binary);
-      for (int cur = 0; cur < n1; cur++) {
-        mpc.BeaverReadFromFile(g[cur % bsize], g_mask[cur % bsize], ifs, m3);
-        mpc.BeaverReadFromFile(miss[cur % bsize], miss_mask[cur % bsize], ifs, m3);
-        mpc.BeaverFlipBit(miss[cur % bsize], miss_mask[cur % bsize]);
 
-        if (cur % bsize == bsize - 1) {
-          mpc.ProfilerPopState(false); // file_io
-
-          Init(tmp_mat, bsize, kp);
-          mpc.BeaverMult(tmp_mat, g, g_mask, Q_scaled, Q_scaled_mask);
+      #pragma omp parallel for ordered schedule(static) private(tmp_mat) firstprivate(g, miss, g_mask, miss_mask)
+      for (int k = 0; k < n1/bsize; k++) {
+        #pragma omp ordered
+        {
           for (int i = 0; i < bsize; i++) {
-            gQ[cur-(bsize-1)+i] = tmp_mat[i];
+            mpc.BeaverReadFromFile(g[i], g_mask[i], ifs, m3);
+            mpc.BeaverReadFromFile(miss[i], miss_mask[i], ifs, m3);
+            mpc.BeaverFlipBit(miss[i], miss_mask[i]);
           }
+        }
 
-          Init(tmp_mat, bsize, kp);
-          mpc.BeaverMult(tmp_mat, miss, miss_mask, Q_scaled_gmean, Q_scaled_gmean_mask);
-          for (int i = 0; i < bsize; i++) {
-            gQ_adj[cur-(bsize-1)+i] = tmp_mat[i];
-          }
+        Init(tmp_mat, bsize, kp);
+        mpc.BeaverMult(tmp_mat, g, g_mask, Q_scaled, Q_scaled_mask);
+        for (int i = 0; i < bsize; i++) {
+          gQ[k*bsize + i] = tmp_mat[i];
+        }
 
-          mpc.ProfilerPushState("file_io");
+        Init(tmp_mat, bsize, kp);
+        mpc.BeaverMult(tmp_mat, miss, miss_mask, Q_scaled_gmean, Q_scaled_gmean_mask);
+        for (int i = 0; i < bsize; i++) {
+          gQ_adj[k*bsize + i] = tmp_mat[i];
         }
       }
+
       ifs.close();
       mpc.ProfilerPopState(false); // file_io
 
