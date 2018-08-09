@@ -1,7 +1,7 @@
 CPP = /data/cb/hhcho/local/bin/clang++
 INCPATHS = -I/data/cb/hhcho/local/include
-CFLAGS = -g -Wall -O1 $(INCPATHS) -march=native -std=c++11 -pthread
-LDLIBS = -lssl -lcrypto -lntl -lgmp -lm -ldl
+CFLAGS = -g -Wall -O1 $(INCPATHS) -fopenmp -march=native -std=c++11 -pthread
+LDLIBS = -fopenmp -lpthread -lssl -lcrypto -lntl -lgmp -lm -ldl
 LDPATH = -L/usr/local/lib
 
 BUILD = build
