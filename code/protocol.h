@@ -1808,8 +1808,11 @@ bool gwas_protocol(MPCEnv& mpc, int pid) {
           for (int i = 0; i < bsize; i++) {
             mpc.BeaverReadFromFile(g[i], g_mask[i], ifs, m3);
             mpc.BeaverReadFromFile(miss[i], miss_mask[i], ifs, m3);
-            mpc.BeaverFlipBit(miss[i], miss_mask[i]);
           }
+        }
+
+        for (int i = 0; i < bsize; i++) {
+          mpc.BeaverFlipBit(miss[i], miss_mask[i]);
         }
 
         Init(tmp_mat, bsize, kp);
