@@ -1802,7 +1802,7 @@ bool gwas_protocol(MPCEnv& mpc, int pid) {
       #pragma omp parallel for ordered private(tmp_mat) firstprivate(ifs, g, miss, g_mask, miss_mask)
       for (int k = 0; k < n1/bsize; k++) {
         ifs.open(cache(pid, "pca_input").c_str(), ios::in | ios::binary);
-        ifs.seekg(0);  // TODO: 2*m3*(?)
+        ifs.seekg(k*2*m3*ZZ_bytes[0]);
 
         for (int i = 0; i < bsize; i++) {
           mpc.BeaverReadFromFile(g[i], g_mask[i], ifs, m3);
