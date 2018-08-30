@@ -33,7 +33,7 @@ bool MPCEnv::Initialize(int pid, vector< pair<int, int> > &pairs) {
     cout << "MPCEnv::Initialize: failed to initialize PRGs" << endl;
     return false;
   }
-  
+
   SetSeed(prg.find(pid)->second);
   cur_prg_pid = pid;
 
@@ -271,7 +271,7 @@ bool MPCEnv::SetupPRGs(vector< pair<int, int> > &pairs) {
   }
 
   prg.insert(map<int, RandomStream>::value_type(pid, NewRandomStream(key)));
-  
+
   /* Global PRG */
   ifstream ifs;
   string key_file = Param::KEY_PATH + "global.key";
@@ -404,7 +404,7 @@ void MPCEnv::ProfilerWriteToFile() {
   if (!Param::PROFILER) return;
 
   ProfilerResetTimer();
-  
+
   // Open log file
   logfs.open(Param::LOG_FILE.c_str());
   if (!logfs.is_open()) {
@@ -473,15 +473,15 @@ void MPCEnv::ParallelLogisticRegression(Vec<ZZ_p>& b0, Mat<ZZ_p>& bv, Vec<ZZ_p>&
     }
   }
 
-  ZZ_p fp_memory; 
+  ZZ_p fp_memory;
   DoubleToFP(fp_memory, 0.5, Param::NBIT_K, Param::NBIT_F);
 
-  ZZ_p fp_n_inv; 
+  ZZ_p fp_n_inv;
   DoubleToFP(fp_n_inv, 1 / ((double) n), Param::NBIT_K, Param::NBIT_F);
 
   double eta = 0.3;
 
-  ZZ_p fp_one; 
+  ZZ_p fp_one;
   DoubleToFP(fp_one, 1, Param::NBIT_K, Param::NBIT_F);
 
   Vec<ZZ_p> step0;
@@ -536,7 +536,7 @@ void MPCEnv::ParallelLogisticRegression(Vec<ZZ_p>& b0, Mat<ZZ_p>& bv, Vec<ZZ_p>&
       ynm_batch[i] = yneg_m[start_ind + i];
     }
 
-    ZZ_p fp_bsize_inv; 
+    ZZ_p fp_bsize_inv;
     DoubleToFP(fp_bsize_inv, eta * (1 / ((double) cur_bsize)), Param::NBIT_K, Param::NBIT_F);
 
     Mat<ZZ_p> bvr, bvm;
@@ -750,7 +750,7 @@ void MPCEnv::Householder(Vec<ZZ_p>& v, Vec<ZZ_p>& x) {
 
   ZZ_p invr, invm;
   BeaverPartition(invr, invm, vnorm_inv[0]);
- 
+
   Vec<ZZ_p> vr, vm;
   if (pid > 0) {
     vr = xr;
@@ -1185,17 +1185,17 @@ void MPCEnv::EigenDecomp(Mat<ZZ_p>& V, Vec<ZZ_p>& L, Mat<ZZ_p>& A) {
 
 void MPCEnv::LessThanBitsAux(Vec<ZZ>& c, Mat<ZZ>& a, Mat<ZZ>& b, int public_flag, int fid) {
   if (debug) cout << "LessThanBitsAux: " << a.NumRows() << ", " << a.NumCols() << endl;
- 
+
   assert(a.NumRows() == b.NumRows());
   assert(a.NumCols() == b.NumCols());
- 
+
   int n = a.NumRows();
   int L = a.NumCols();
- 
+
   /* Calculate XOR */
   Mat<ZZ> x;
   x.SetDims(n, L);
- 
+
   if (public_flag == 0) {
     MultElem(x, a, b, fid);
     if (pid > 0) {
@@ -1210,11 +1210,11 @@ void MPCEnv::LessThanBitsAux(Vec<ZZ>& c, Mat<ZZ>& a, Mat<ZZ>& b, int public_flag
     }
     Mod(x, fid);
   }
- 
+
   Mat<ZZ> f;
   PrefixOr(f, x, fid);
   x.kill();
- 
+
   if (pid > 0) {
     for (int i = 0; i < n; i++) {
       for (int j = L - 1; j >= 1; j--) {
@@ -1223,10 +1223,10 @@ void MPCEnv::LessThanBitsAux(Vec<ZZ>& c, Mat<ZZ>& a, Mat<ZZ>& b, int public_flag
     }
     Mod(f, fid);
   }
- 
+
   if (public_flag == 2) {
     c.SetLength(n);
- 
+
     if (pid > 0) {
       for (int i = 0; i < n; i++) {
         c[i] = 0;
@@ -1245,7 +1245,7 @@ void MPCEnv::LessThanBitsAux(Vec<ZZ>& c, Mat<ZZ>& a, Mat<ZZ>& b, int public_flag
       f_arr[i].SetDims(1, L);
       b_arr[i].SetDims(L, 1);
     }
- 
+
     if (pid > 0) {
       for (int i = 0; i < n; i++) {
         f_arr[i][0] = f[i];
@@ -1254,10 +1254,10 @@ void MPCEnv::LessThanBitsAux(Vec<ZZ>& c, Mat<ZZ>& a, Mat<ZZ>& b, int public_flag
         }
       }
     }
- 
+
     Vec< Mat<ZZ> > c_arr;
     MultMatParallel(c_arr, f_arr, b_arr, fid);
- 
+
     c.SetLength(n);
     if (pid > 0) {
       for (int i = 0; i < n; i++) {
@@ -1301,7 +1301,7 @@ void MPCEnv::LessThanPublic(Vec<ZZ_p>& c, Vec<ZZ_p>& a, ZZ_p bpub) {
 // Failure probability of 1 / BASE_P
 // Base field index 2
 void MPCEnv::IsPositive(Vec<ZZ_p>& b, Vec<ZZ_p>& a) {
-  if (debug) cout << "IsPositive: " << a.length() << endl; 
+  if (debug) cout << "IsPositive: " << a.length() << endl;
 
   int n = a.length();
   int nbits = ZZ_bits[0];
@@ -1412,7 +1412,7 @@ void MPCEnv::FlipBit(Vec<ZZ_p>& b, Vec<ZZ_p>& a) {
 
 // Assumes Param::NBIT_K - NBIT_F is even
 void MPCEnv::FPSqrt(Vec<ZZ_p>& b, Vec<ZZ_p>& b_inv, Vec<ZZ_p>& a) {
-  if (debug) cout << "FPSqrt: " << a.length() << endl; 
+  if (debug) cout << "FPSqrt: " << a.length() << endl;
 
   int n = a.length();
 
@@ -1480,7 +1480,7 @@ void MPCEnv::FPSqrt(Vec<ZZ_p>& b, Vec<ZZ_p>& b_inv, Vec<ZZ_p>& a) {
   MultElem(h_and_g[0][0], scaled_est, s_sqrt);
   // Our scaled initial approximation (scaled_est) has bit length <= NBIT_F + 2
   // and s_sqrt is at most NBIT_K/2 bits, so their product is at most NBIT_K/2 + NBIT_F + 2
-  Trunc(h_and_g[0], Param::NBIT_K/2 + Param::NBIT_F + 2, ((Param::NBIT_K - Param::NBIT_F) / 2) + 1); 
+  Trunc(h_and_g[0], Param::NBIT_K/2 + Param::NBIT_F + 2, ((Param::NBIT_K - Param::NBIT_F) / 2) + 1);
 
   h_and_g[1][0] = h_and_g[0][0] * 2;
   MultElem(h_and_g[1][0], h_and_g[1][0], a);
@@ -1516,7 +1516,7 @@ void MPCEnv::FPSqrt(Vec<ZZ_p>& b, Vec<ZZ_p>& b_inv, Vec<ZZ_p>& a) {
 }
 
 void MPCEnv::FPDiv(Vec<ZZ_p>& c, Vec<ZZ_p>& a, Vec<ZZ_p>& b) {
-  if (debug) cout << "FPDiv: " << a.length() << endl; 
+  if (debug) cout << "FPDiv: " << a.length() << endl;
 
   assert(a.length() == b.length());
 
@@ -1633,7 +1633,7 @@ void MPCEnv::FPDiv(Vec<ZZ_p>& c, Vec<ZZ_p>& a, Vec<ZZ_p>& b) {
 }
 
 void MPCEnv::Trunc(Mat<ZZ_p>& a, int k, int m) {
-  if (debug) cout << "Trunc: " << a.NumRows() << ", " << a.NumCols() << endl; 
+  if (debug) cout << "Trunc: " << a.NumRows() << ", " << a.NumCols() << endl;
 
   Mat<ZZ_p> r;
   Mat<ZZ_p> r_low;
@@ -1677,7 +1677,7 @@ void MPCEnv::Trunc(Mat<ZZ_p>& a, int k, int m) {
   }
 
   RevealSym(c);
-  
+
   Mat<ZZ_p> c_low;
   c_low.SetDims(a.NumRows(), a.NumCols());
   if (pid > 0) {
@@ -1737,13 +1737,13 @@ void MPCEnv::PrefixOr(Mat<ZZ>& b, Mat<ZZ>& a, int fid) {
   }
 
   Reshape(a_padded, n * L, L);
-  
+
   Vec<ZZ> x;
   FanInOr(x, a_padded, fid);
 
   Mat<ZZ> xpre;
   xpre.SetDims(n * L, L);
-  
+
   if (pid > 0) {
     for (int i = 0; i < n; i++) {
       for (int j = 0; j < L; j++) {
@@ -1843,7 +1843,7 @@ void MPCEnv::PrefixOr(Mat<ZZ>& b, Mat<ZZ>& a, int fid) {
   if (pid > 0) {
     for (int i = 0; i < n; i++) {
       for (int j = 0; j < a.NumCols(); j++) {
-        int j_pad = L2 - a.NumCols() + j; 
+        int j_pad = L2 - a.NumCols() + j;
 
         int il = (int) (j_pad / L);
         int jl = j_pad - il * L;
@@ -1930,7 +1930,7 @@ void MPCEnv::ShareRandomBits(Vec<ZZ_p>& r, Mat<ZZ>& rbits, int k, int n, int fid
 }
 
 void MPCEnv::TableLookup(Mat<ZZ_p>& b, Vec<ZZ_p>& a, int table_id) {
-  if (debug) cout << "TableLookup: " << a.length() << endl; 
+  if (debug) cout << "TableLookup: " << a.length() << endl;
 
   assert(!table_type_ZZ[table_id]);
 
@@ -1938,7 +1938,7 @@ void MPCEnv::TableLookup(Mat<ZZ_p>& b, Vec<ZZ_p>& a, int table_id) {
 }
 
 void MPCEnv::TableLookup(Mat<ZZ_p>& b, Vec<ZZ>& a, int table_id, int fid) {
-  if (debug) cout << "TableLookup: " << a.length() << endl; 
+  if (debug) cout << "TableLookup: " << a.length() << endl;
 
   assert(table_type_ZZ[table_id]);
   assert(table_field_index[table_id] == fid);
@@ -1967,7 +1967,7 @@ void MPCEnv::NormalizerEvenExp(Vec<ZZ_p>& b, Vec<ZZ_p>& b_sqrt, Vec<ZZ_p>& a) {
   int n = a.length();
   int fid = 1;
 
-  Vec<ZZ_p> r; 
+  Vec<ZZ_p> r;
   Mat<ZZ> rbits;
   ShareRandomBits(r, rbits, Param::NBIT_K, n, fid);
 
@@ -2054,7 +2054,7 @@ void MPCEnv::NormalizerEvenExp(Vec<ZZ_p>& b, Vec<ZZ_p>& b_sqrt, Vec<ZZ_p>& a) {
   LessThanBits(double_flag, efir, rfir, fid);
   efir.kill();
   rfir.kill();
-  
+
   Mat<ZZ> odd_bits, even_bits;
   odd_bits.SetDims(n, half_len);
   even_bits.SetDims(n, half_len);
@@ -2518,4 +2518,8 @@ void MPCEnv::BeaverMult(Mat<ZZ>& ab, Mat<ZZ>& ar, Mat<ZZ>& am, Mat<ZZ>& br, Mat<
   }
 
   Mod(ab, fid);
+}
+
+int32_t MPCEnv::ElemBytes() {
+  return ZZ_bytes[0];
 }

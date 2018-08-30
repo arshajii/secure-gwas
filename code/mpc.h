@@ -115,11 +115,11 @@ public:
   template<class T>
   void Powers(Mat<T>& b, Vec<T>& a, int pow, int fid = 0) {
     if (debug) cout << "Powers: " << a.length() << ", power = " << pow << endl;
-  
+
     assert(pow >= 1);
-  
+
     int n = a.length();
-  
+
     if (pow == 1) {
       Init(b, 2, n);
       if (pid > 0) {
@@ -127,11 +127,11 @@ public:
           AddScalar(b[0], T(1));
         }
         b[1] = a;
-      } 
+      }
     } else { // pow > 1
       Vec<T> ar, am;
       BeaverPartition(ar, am, a, fid);
-  
+
       if (pid == 0) {
         Mat<T> ampow;
         ampow.SetDims(pow - 1, n);
@@ -140,18 +140,18 @@ public:
           mul_elem(ampow[p], ampow[p - 1], am);
           Mod(ampow[p], fid);
         }
-  
+
         Mat<T> r;
         SwitchSeed(1);
         RandMat(r, pow - 1, n, fid);
         RestoreSeed();
-  
+
         ampow -= r;
         Mod(ampow, fid);
         r.kill();
-  
+
         SendMat(ampow, 2, fid);
-  
+
         b.SetDims(pow + 1, n);
       } else {
         Mat<T> ampow;
@@ -162,7 +162,7 @@ public:
         } else { // pid == 2
           ReceiveMat(ampow, 0, pow - 1, n, fid);
         }
-  
+
         Mat<T> arpow;
         arpow.SetDims(pow - 1, n);
         mul_elem(arpow[0], ar, ar);
@@ -170,42 +170,42 @@ public:
           mul_elem(arpow[p], arpow[p - 1], ar);
           Mod(arpow[p], fid);
         }
-  
+
         Mat<T> t;
         GetPascalMatrix(t, pow, fid);
-  
+
         Init(b, pow + 1, n);
-  
+
         if (pid == 1) {
           AddScalar(b[0], T(1));
         }
         b[1] = a;
-  
+
         Vec<T> tmp;
         for (int p = 2; p <= pow; p++) {
           if (pid == 1) {
             b[p] = arpow[p - 2];
           }
-  
+
           if (p == 2) {
             mul_elem(tmp, ar, am);
             b[p] += t[p][1] * tmp;
           } else {
             mul_elem(tmp, arpow[p - 3], am);
             b[p] += t[p][1] * tmp;
-    
+
             for (int j = 2; j <= p - 2; j++) {
               mul_elem(tmp, arpow[p - 2 - j], ampow[j - 2]);
               b[p] += t[p][j] * tmp;
             }
-    
+
             mul_elem(tmp, ar, ampow[p - 3]);
             b[p] += t[p][p - 1] * tmp;
           }
-  
+
           b[p] += ampow[p - 2];
         }
-  
+
         Mod(b, fid);
       }
     }
@@ -214,14 +214,14 @@ public:
   template<class T>
   void EvaluatePoly(Mat<T>& b, Vec<T>& a, Mat<T>& coeff, int fid = 0) {
     if (debug) cout << "EvaluatePoly: " << a.length() << ", deg = " << coeff.NumCols() - 1 << endl;
-    
+
     int n = a.length();
     int npoly = coeff.NumRows();
     int deg = coeff.NumCols() - 1;
-  
+
     Mat<T> apow;
     Powers(apow, a, deg, fid);
-  
+
     if (pid > 0) {
       b = coeff * apow;
       Mod(b, fid);
@@ -234,7 +234,7 @@ public:
   void FanInOr(Vec<ZZ>& b, Mat<ZZ>& a, int fid);
 
   // Each row of input a is a binary representation of a number
-  // Each row of output b is prefix-OR of the corresponding row of a 
+  // Each row of output b is prefix-OR of the corresponding row of a
   void PrefixOr(Mat<ZZ>& b, Mat<ZZ>& a, int fid);
 
   template<class T>
@@ -255,11 +255,11 @@ public:
     a += b;
     Mod(a, fid);
   }
-  
+
   template<class T>
   void RevealSym(Vec<T>& a, int fid = 0) {
     if (debug) cout << "RevealSym: " << a.length() << endl;
-  
+
     if (pid == 0) {
       return;
     }
@@ -276,15 +276,15 @@ public:
     a += b;
     Mod(a, fid);
   }
-  
+
   template<class T>
   void RevealSym(Mat<T>& a, int fid = 0) {
     if (debug) cout << "RevealSym: " << a.NumRows() << ", " << a.NumCols() << endl;
-  
+
     if (pid == 0) {
       return;
     }
-  
+
     Mat<T> b;
     if (pid == 1) {
       SendMat(a, 3 - pid, fid);
@@ -293,23 +293,23 @@ public:
       ReceiveMat(b, 3 - pid, a.NumRows(), a.NumCols(), fid);
       SendMat(a, 3 - pid, fid);
     }
-  
+
     a += b;
     Mod(a, fid);
   }
- 
+
   template<class T>
   void RevealSym(Vec< Mat<T> >& a, int fid = 0) {
     if (debug) {
       cout << "RevealSym" << endl;
     }
-  
+
     if (pid == 0) {
       return;
     }
-  
+
     int nmat = a.length();
-  
+
     Vec<int> nrows, ncols;
     nrows.SetLength(nmat);
     ncols.SetLength(nmat);
@@ -317,7 +317,7 @@ public:
       nrows[k] = a[k].NumRows();
       ncols[k] = a[k].NumCols();
     }
-  
+
     Vec< Mat<T> > b;
     if (pid == 1) {
       SendMatParallel(a, 3 - pid, fid);
@@ -326,13 +326,13 @@ public:
       ReceiveMatParallel(b, 3 - pid, nrows, ncols, fid);
       SendMatParallel(a, 3 - pid, fid);
     }
-  
+
     for (int k = 0; k < nmat; k++) {
       a[k] += b[k];
       Mod(a[k], fid);
     }
   }
-  
+
   template<class T>
   void Print(T& a, int fid = 0) {
     Print(a, cout, fid);
@@ -492,7 +492,7 @@ public:
           os << ad[i][j];
           if (j == ad.NumCols() - 1) {
             os << endl;
-          } else { 
+          } else {
             os << '\t';
           }
         }
@@ -617,7 +617,7 @@ public:
       SwitchSeed(1);
       RandMat(mask, ab.NumRows(), ab.NumCols(), fid);
       RestoreSeed();
-  
+
       ab -= mask;
       Mod(ab, fid);
 
@@ -650,7 +650,7 @@ public:
         ab[i] -= mask;
       }
       RestoreSeed();
-  
+
       Mod(ab, fid);
 
       SendMatParallel(ab, 2, fid);
@@ -696,7 +696,7 @@ public:
         ab += ar * br;
       }
     }
-  
+
     Mod(ab, fid);
   }
 
@@ -711,7 +711,7 @@ public:
         ab += ar * br;
       }
     }
-  
+
     Mod(ab, fid);
   }
 
@@ -726,7 +726,7 @@ public:
         ab += ar * br;
       }
     }
-  
+
     Mod(ab, fid);
   }
 
@@ -741,7 +741,7 @@ public:
         ab += ar * br;
       }
     }
-  
+
     Mod(ab, fid);
   }
 
@@ -875,18 +875,18 @@ public:
 
     int nrow = a.NumRows();
     int ncol = a.NumCols();
-  
+
     if (pid == 0) {
       Mat<T> x1;
       SwitchSeed(1);
       RandMat(x1, nrow, ncol, fid);
       RestoreSeed();
-  
+
       Mat<T> x2;
       SwitchSeed(2);
       RandMat(x2, nrow, ncol, fid);
       RestoreSeed();
-  
+
       am = x1 + x2;
       Mod(am, fid);
       ar.SetDims(nrow, ncol);
@@ -894,7 +894,7 @@ public:
       SwitchSeed(0);
       RandMat(am, nrow, ncol, fid);
       RestoreSeed();
-  
+
       ar = a - am;
       Mod(ar, fid);
       RevealSym(ar, fid);
@@ -919,12 +919,12 @@ public:
         SwitchSeed(1);
         RandMat(x1, a[i].NumRows(), a[i].NumCols(), fid);
         RestoreSeed();
-  
+
         Mat<T> x2;
         SwitchSeed(2);
         RandMat(x2, a[i].NumRows(), a[i].NumCols(), fid);
         RestoreSeed();
-  
+
         am[i] = x1 + x2;
         Mod(am[i], fid);
 
@@ -937,7 +937,7 @@ public:
         SwitchSeed(0);
         RandMat(am[i], a[i].NumRows(), a[i].NumCols(), fid);
         RestoreSeed();
-  
+
         ar[i] = a[i] - am[i];
         Mod(ar[i], fid);
       }
@@ -980,7 +980,7 @@ public:
     Vec<T> br, bm;
     BeaverPartition(ar, am, a, fid);
     BeaverPartition(br, bm, b, fid);
-    
+
     Init(c, a.NumRows());
     BeaverMult(c, ar, am, br, bm, fid);
 
@@ -993,7 +993,7 @@ public:
     Mat<T> br, bm;
     BeaverPartition(ar, am, a, fid);
     BeaverPartition(br, bm, b, fid);
-    
+
     Init(c, a.length());
     BeaverMult(c, ar, am, br, bm, fid);
 
@@ -1050,7 +1050,7 @@ public:
     b.SetDims(1, 1);
     b[0][0] = a;
   }
-  
+
   template<class T>
   void Reshape(Vec<T>& b, Mat<T>& a) {
     b.SetLength(a.NumRows() * a.NumCols());
@@ -1064,7 +1064,7 @@ public:
       }
     }
   }
-  
+
   template<class T>
   void Reshape(Mat<T>& a, int nrows, int ncols) {
     if (pid == 0) {
@@ -1074,7 +1074,7 @@ public:
       ReshapeMat(a, nrows, ncols);
     }
   }
-  
+
   template<class T>
   void Reshape(Mat<T>& b, Vec<T>& a, int nrows, int ncols) {
     if (pid == 0) {
@@ -1144,7 +1144,7 @@ public:
     sockets.find(from_pid)->second.ReceiveSecure(buf, ZZ_bytes[fid]);
     ConvertBytes(a, buf_ptr, fid);
   }
-  
+
   template<class T>
   void ReceiveVec(Vec<T>& a, int from_pid, int n, int fid = 0) {
     a.SetLength(n);
@@ -1164,13 +1164,13 @@ public:
         remaining -= count;
         buf_ptr = buf;
       }
-  
+
       ConvertBytes(a[i], buf_ptr, fid);
       buf_ptr += ZZ_bytes[fid];
       stored_in_buf--;
     }
   }
-  
+
   template<class T>
   void ReceiveMat(Mat<T>& a, int from_pid, int nrows, int ncols, int fid = 0) {
     a.SetDims(nrows, ncols);
@@ -1191,7 +1191,7 @@ public:
           remaining -= count;
           buf_ptr = buf;
         }
-  
+
         ConvertBytes(a[i][j], buf_ptr, fid);
         buf_ptr += ZZ_bytes[fid];
         stored_in_buf--;
@@ -1205,7 +1205,7 @@ public:
     BytesFromZZ(buf_ptr, AsZZ(a), ZZ_bytes[fid]);
     sockets.find(to_pid)->second.SendSecure(buf, ZZ_bytes[fid]);
   }
-  
+
   template<class T>
   void SendVec(Vec<T>& a, int to_pid, int fid = 0) {
     unsigned char *buf_ptr = buf;
@@ -1216,17 +1216,17 @@ public:
         stored_in_buf = 0;
         buf_ptr = buf;
       }
-  
+
       BytesFromZZ(buf_ptr, AsZZ(a[i]), ZZ_bytes[fid]);
       stored_in_buf++;
       buf_ptr += ZZ_bytes[fid];
     }
-  
+
     if (stored_in_buf > 0) {
       sockets.find(to_pid)->second.SendSecure(buf, ZZ_bytes[fid] * stored_in_buf);
     }
   }
-  
+
   template<class T>
   void SendMat(Mat<T>& a, int to_pid, int fid = 0) {
     unsigned char *buf_ptr = buf;
@@ -1238,30 +1238,30 @@ public:
           stored_in_buf = 0;
           buf_ptr = buf;
         }
-  
+
         BytesFromZZ(buf_ptr, AsZZ(a[i][j]), ZZ_bytes[fid]);
         stored_in_buf++;
         buf_ptr += ZZ_bytes[fid];
       }
     }
-  
+
     if (stored_in_buf > 0) {
       sockets.find(to_pid)->second.SendSecure(buf, ZZ_bytes[fid] * stored_in_buf);
     }
   }
-  
+
   template<class T>
   void ReceiveMatParallel(Vec< Mat<T> >& a, int from_pid, Vec<int>& nrows, Vec<int>& ncols, int fid = 0) {
     assert(nrows.length() == ncols.length());
-  
+
     int nmat = nrows.length();
     a.SetLength(nmat);
-  
+
     uint64_t remaining = 0;
     for (int k = 0; k < nmat; k++) {
       remaining += nrows[k] * ncols[k];
     }
-  
+
     unsigned char *buf_ptr = buf;
     uint64_t stored_in_buf = 0;
     for (int k = 0; k < nmat; k++) {
@@ -1280,7 +1280,7 @@ public:
             remaining -= count;
             buf_ptr = buf;
           }
-  
+
           ConvertBytes(a[k][i][j], buf_ptr, fid);
           buf_ptr += ZZ_bytes[fid];
           stored_in_buf--;
@@ -1288,7 +1288,7 @@ public:
       }
     }
   }
-  
+
   template<class T>
   void SendMatParallel(Vec< Mat<T> >& a, int to_pid, int fid = 0) {
     unsigned char *buf_ptr = buf;
@@ -1301,14 +1301,14 @@ public:
             stored_in_buf = 0;
             buf_ptr = buf;
           }
-  
+
           BytesFromZZ(buf_ptr, AsZZ(a[k][i][j]), ZZ_bytes[fid]);
           stored_in_buf++;
           buf_ptr += ZZ_bytes[fid];
         }
       }
     }
-  
+
     if (stored_in_buf > 0) {
       sockets.find(to_pid)->second.SendSecure(buf, ZZ_bytes[fid] * stored_in_buf);
     }
@@ -1359,7 +1359,7 @@ public:
       for (int j = 0; j < ncols; j++)
         RandomBnd(a[i][j], primes[fid]);
   }
-  
+
   static void RandMat(Mat<ZZ_p>& a, int nrows, int ncols, int fid = 0) {
     a.SetDims(nrows, ncols);
     for (int i = 0; i < nrows; i++)
@@ -1373,11 +1373,12 @@ public:
       for (int j = 0; j < ncols; j++)
         a[i][j] = conv<ZZ_p>(RandomBits_ZZ(bitlen));
   }
-  
+
   // a contains column indices (1-based) into cached tables
   void TableLookup(Mat<ZZ_p>& b, Vec<ZZ_p>& a, int cache_id);
   void TableLookup(Mat<ZZ_p>& b, Vec<ZZ>& a, int cache_id, int fid);
 
+  int32_t ElemBytes();
 
 private:
   map<int, CSocket> sockets;
@@ -1442,7 +1443,7 @@ private:
 
     Init(c, out_rows, out_cols);
     BeaverMult(c, ar, am, br, bm, elem_wise, fid);
-    
+
     BeaverReconstruct(c, fid);
   }
 
@@ -1451,18 +1452,18 @@ private:
     if (debug) cout << "MultAuxParallel" << endl;
     assert(a.length() == b.length());
     int nmat = a.length();
-  
+
     Vec<int> out_rows, out_cols;
     out_rows.SetLength(nmat);
     out_cols.SetLength(nmat);
-  
+
     for (int k = 0; k < nmat; k++) {
       if (elem_wise) {
         assert(a[k].NumRows() == b[k].NumRows() && a[k].NumCols() == b[k].NumCols());
       } else {
         assert(a[k].NumCols() == b[k].NumRows());
       }
-  
+
       out_rows[k] = a[k].NumRows();
       out_cols[k] = elem_wise ? a[k].NumCols() : b[k].NumCols();
     }
@@ -1585,7 +1586,7 @@ private:
 
     NTL_GEXEC_RANGE_END
   }
-  
+
   void mul_elem(Mat<ZZ>& c, Mat<ZZ>& a, Mat<ZZ>& b) {
     assert(a.NumRows() == b.NumRows() && a.NumCols() == b.NumCols());
     c.SetDims(a.NumRows(), a.NumCols());
@@ -1673,12 +1674,12 @@ private:
 
   template<class T>
   void lagrange_interp(Vec<T>& c, Vec<long>& x, Vec<T>& y, int fid = 0) {
-    if (debug) cout << "lagrange_interp: " << x.length() << endl; 
+    if (debug) cout << "lagrange_interp: " << x.length() << endl;
 
     assert(x.length() == y.length());
 
     int n = y.length();
-  
+
     map<long, T> inv_table;
     for (int i = 0; i < n; i++) {
       for (int j = 0; j < n; j++) {
@@ -1695,13 +1696,13 @@ private:
         }
       }
     }
-  
+
     Mat<T> numer;
     numer.SetDims(n, n);
-  
+
     Vec<T> denom_inv;
     denom_inv.SetLength(n);
-  
+
     /* Initialize numer and denom_inv */
     for (int i = 0; i < n; i++) {
       denom_inv[i] = 1;
@@ -1711,13 +1712,13 @@ private:
         clear(numer[i]);
       }
     }
-  
+
     for (int i = 0; i < n; i++) {
       for (int j = 0; j < n; j++) {
         if (i == j) {
           continue;
         }
-  
+
         for (int k = n - 1; k >= 0; k--) {
           numer[k][j] = ((k == 0) ? T(0) : numer[k-1][j]) - x[i] * numer[k][j];
           Mod(numer[k][j], fid);
@@ -1726,20 +1727,20 @@ private:
         Mod(denom_inv[i], fid);
       }
     }
-  
+
     mul(c, numer, denom_inv);
     Mod(c, fid);
   }
 
   void lagrange_interp_simple(Vec<ZZ>& c, Vec<ZZ>& y, int fid) {
     int n = y.length();
-  
+
     Vec<long> x;
     x.SetLength(n);
     for (int i = 0; i < n; i++) {
       x[i] = i + 1;
     }
-    
+
     lagrange_interp(c, x, y, fid);
   }
 };
