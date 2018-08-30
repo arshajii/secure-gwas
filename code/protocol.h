@@ -1797,19 +1797,19 @@ bool gwas_protocol(MPCEnv& mpc, int pid) {
       Init(gQ_adj, n1, kp);
 
       mpc.ProfilerPushState("data_scan0");
-
       mpc.ProfilerPushState("file_io");
-      ifs.open(cache(pid, "pca_input").c_str(), ios::in | ios::binary);
 
-      #pragma omp parallel for ordered schedule(static) private(tmp_mat) firstprivate(g, miss, g_mask, miss_mask)
+      #pragma omp parallel for ordered private(tmp_mat) firstprivate(ifs, g, miss, g_mask, miss_mask)
       for (int k = 0; k < n1/bsize; k++) {
-        #pragma omp ordered
-        {
-          for (int i = 0; i < bsize; i++) {
-            mpc.BeaverReadFromFile(g[i], g_mask[i], ifs, m3);
-            mpc.BeaverReadFromFile(miss[i], miss_mask[i], ifs, m3);
-          }
+        ifs.open(cache(pid, "pca_input").c_str(), ios::in | ios::binary);
+        ifs.seekg(0);  // TODO: 2*m3*(?)
+
+        for (int i = 0; i < bsize; i++) {
+          mpc.BeaverReadFromFile(g[i], g_mask[i], ifs, m3);
+          mpc.BeaverReadFromFile(miss[i], miss_mask[i], ifs, m3);
         }
+
+        ifs.close();
 
         for (int i = 0; i < bsize; i++) {
           mpc.BeaverFlipBit(miss[i], miss_mask[i]);
@@ -1828,7 +1828,6 @@ bool gwas_protocol(MPCEnv& mpc, int pid) {
         }
       }
 
-      ifs.close();
       mpc.ProfilerPopState(false); // file_io
 
       long remainder = n1 % bsize;
