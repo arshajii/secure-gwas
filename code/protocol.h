@@ -1798,12 +1798,11 @@ bool gwas_protocol(MPCEnv& mpc, int pid) {
 
       mpc.ProfilerPushState("data_scan0");
       mpc.ProfilerPushState("file_io");
-      const char *pca_input = cache(pid, "pca_input").c_str();
 
       #pragma omp parallel for private(tmp_mat) firstprivate(g, miss, g_mask, miss_mask)
       for (int k = 0; k < n1/bsize; k++) {
         ifstream ifs;
-        ifs.open(pca_input, ios::in | ios::binary);
+        ifs.open(cache(pid, "pca_input").c_str(), ios::in | ios::binary);
         ifs.seekg(k * (2 * m3 * mpc.ElemBytes()));
 
         for (int i = 0; i < bsize; i++) {
