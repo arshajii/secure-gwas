@@ -1801,6 +1801,9 @@ bool gwas_protocol(MPCEnv& mpc, int pid) {
 
       #pragma omp parallel for private(tmp_mat) firstprivate(g, miss, g_mask, miss_mask)
       for (int k = 0; k < n1/bsize; k++) {
+        ZZ base_p = conv<ZZ>(Param::BASE_P.c_str());
+        ZZ_p::init(base_p);
+
         ifstream ifs;
         ifs.open(cache(pid, "pca_input").c_str(), ios::in | ios::binary);
         ifs.seekg(k * (2 * m3 * mpc.ElemBytes()));
