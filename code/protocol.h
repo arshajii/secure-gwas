@@ -1830,7 +1830,6 @@ bool gwas_protocol(MPCEnv& mpc, int pid) {
       }
 
       mpc.ProfilerPopState(false); // file_io
-      mpc.ProfilerPopState(false); // data_scan0
 
       long remainder = n1 % bsize;
       if (remainder > 0) {
