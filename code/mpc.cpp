@@ -10,6 +10,8 @@
 #include <fstream>
 #include <sstream>
 
+#include <omp.h>
+
 using namespace NTL;
 using namespace std;
 
@@ -2266,6 +2268,7 @@ void MPCEnv::Read(Mat<ZZ_p>& a, ifstream& ifs, int nrows, int ncols) {
   assert(ifs.is_open());
 
   a.SetDims(nrows, ncols);
+  unsigned char *buf = omp_in_parallel() ? (unsigned char *)malloc(Param::MPC_BUF_SIZE + GCM_AUTH_TAG_LEN) : this->buf;
   unsigned char *buf_ptr = buf;
   uint64_t stored_in_buf = 0;
   uint64_t remaining = nrows * ncols;
@@ -2289,6 +2292,7 @@ void MPCEnv::Read(Mat<ZZ_p>& a, ifstream& ifs, int nrows, int ncols) {
       stored_in_buf--;
     }
   }
+  if (omp_in_parallel()) free(buf);
 }
 
 void MPCEnv::SendInt(int num, int to_pid) {
