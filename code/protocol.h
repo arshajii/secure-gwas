@@ -1806,7 +1806,7 @@ bool gwas_protocol(MPCEnv& mpc, int pid) {
 
         ifstream ifs;
         ifs.open(cache(pid, "pca_input").c_str(), ios::in | ios::binary);
-        ifs.seekg(k * (2 * m3 * mpc.ElemBytes()));
+        ifs.seekg(k * (pid > 0 ? 2 : 1) * (2 * bsize * m3 * mpc.ElemBytes()));
 
         for (int i = 0; i < bsize; i++) {
           mpc.BeaverReadFromFile(g[i], g_mask[i], ifs, m3);
