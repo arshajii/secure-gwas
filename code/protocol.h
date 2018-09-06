@@ -554,6 +554,7 @@ bool data_sharing_protocol(MPCEnv& mpc, int pid) {
 
 bool gwas_protocol(MPCEnv& mpc, int pid) {
   SetNumThreads(Param::NUM_THREADS);
+  omp_set_num_threads(Param::IO_THREADS);
   cout << AvailableThreads() << " threads created" << endl;
 
   int n0 = Param::NUM_INDS;
@@ -1799,6 +1800,7 @@ bool gwas_protocol(MPCEnv& mpc, int pid) {
       mpc.ProfilerPushState("data_scan0");
       mpc.ProfilerPushState("file_io");
 
+      SetNumThreads(Param::NUM_THREADS/Param::IO_THREADS);
       #pragma omp parallel for private(tmp_mat) firstprivate(g, miss, g_mask, miss_mask)
       for (int k = 0; k < n1/bsize; k++) {
         ZZ base_p = conv<ZZ>(Param::BASE_P.c_str());
@@ -1811,13 +1813,10 @@ bool gwas_protocol(MPCEnv& mpc, int pid) {
         for (int i = 0; i < bsize; i++) {
           mpc.BeaverReadFromFile(g[i], g_mask[i], ifs, m3);
           mpc.BeaverReadFromFile(miss[i], miss_mask[i], ifs, m3);
+          mpc.BeaverFlipBit(miss[i], miss_mask[i]);
         }
 
         ifs.close();
-
-        for (int i = 0; i < bsize; i++) {
-          mpc.BeaverFlipBit(miss[i], miss_mask[i]);
-        }
 
         Init(tmp_mat, bsize, kp);
         mpc.BeaverMult(tmp_mat, g, g_mask, Q_scaled, Q_scaled_mask);
@@ -1831,11 +1830,23 @@ bool gwas_protocol(MPCEnv& mpc, int pid) {
           gQ_adj[k*bsize + i] = tmp_mat[i];
         }
       }
+      SetNumThreads(Param::NUM_THREADS);
 
       mpc.ProfilerPopState(false); // file_io
 
       long remainder = n1 % bsize;
       if (remainder > 0) {
+        ifs.open(cache(pid, "pca_input").c_str(), ios::in | ios::binary);
+        ifs.seekg(n1/bsize * (pid > 0 ? 2 : 1) * (2 * bsize * m3 * mpc.ElemBytes()));
+
+        for (int i = 0; i < remainder; i++) {
+          mpc.BeaverReadFromFile(g[i], g_mask[i], ifs, m3);
+          mpc.BeaverReadFromFile(miss[i], miss_mask[i], ifs, m3);
+          mpc.BeaverFlipBit(miss[i], miss_mask[i]);
+        }
+
+        ifs.close();
+
         g.SetDims(remainder, m3);
         g_mask.SetDims(remainder, m3);
         miss.SetDims(remainder, m3);
@@ -1891,35 +1902,70 @@ bool gwas_protocol(MPCEnv& mpc, int pid) {
 
       // Pass 2
       mpc.ProfilerPushState("file_io");
-      ifs.open(cache(pid, "pca_input").c_str(), ios::in | ios::binary);
-      for (int cur = 0; cur < n1; cur++) {
-        mpc.BeaverReadFromFile(g[cur % bsize], g_mask[cur % bsize], ifs, m3);
-        mpc.BeaverReadFromFile(miss[cur % bsize], miss_mask[cur % bsize], ifs, m3);
-        mpc.BeaverFlipBit(miss[cur % bsize], miss_mask[cur % bsize]);
 
-        Qsub[cur % bsize] = Q[cur];
-        Qsub_mask[cur % bsize] = Q_mask[cur];
+      SetNumThreads(Param::NUM_THREADS/Param::IO_THREADS);
+      //#pragma omp declare reduction(MatAdd: Mat<ZZ_p>: omp_out += omp_in)
+      #pragma omp parallel for firstprivate(g, miss, g_mask, miss_mask, Qsub, Qsub_mask) //reduction(MatAdd:gQ,gQ_adj)
+      for (int k = 0; k < n1/bsize; k++) {
+        ZZ base_p = conv<ZZ>(Param::BASE_P.c_str());
+        ZZ_p::init(base_p);
 
-        if (cur % bsize == bsize - 1) {
-          mpc.ProfilerPopState(false); // file_io
+        Mat<ZZ_p> gQ_priv;
+        Mat<ZZ_p> gQ_adj_priv;
 
-          mpc.Transpose(Qsub);
-          transpose(Qsub_mask, Qsub_mask);
+        Init(gQ_priv, kp, m3);
+        Init(gQ_adj_priv, kp, m3);
 
-          mpc.BeaverMult(gQ, Qsub, Qsub_mask, g, g_mask);
-          mpc.BeaverMult(gQ_adj, Qsub, Qsub_mask, miss, miss_mask);
+        ifstream ifs;
+        ifs.open(cache(pid, "pca_input").c_str(), ios::in | ios::binary);
+        ifs.seekg(k * (pid > 0 ? 2 : 1) * (2 * bsize * m3 * mpc.ElemBytes()));
 
-          Qsub.SetDims(bsize, kp);
-          Qsub_mask.SetDims(bsize, kp);
+        for (int i = 0; i < bsize; i++) {
+          mpc.BeaverReadFromFile(g[i], g_mask[i], ifs, m3);
+          mpc.BeaverReadFromFile(miss[i], miss_mask[i], ifs, m3);
+          mpc.BeaverFlipBit(miss[i], miss_mask[i]);
 
-          mpc.ProfilerPushState("file_io");
+          Qsub[i] = Q[k*bsize + i];
+          Qsub_mask[i] = Q_mask[k*bsize + i];
         }
+
+        ifs.close();
+
+        mpc.Transpose(Qsub);
+        transpose(Qsub_mask, Qsub_mask);
+
+        mpc.BeaverMult(gQ_priv, Qsub, Qsub_mask, g, g_mask);
+        mpc.BeaverMult(gQ_adj_priv, Qsub, Qsub_mask, miss, miss_mask);
+
+        #pragma omp critical
+        {
+          gQ += gQ_priv;
+          gQ_adj += gQ_adj_priv;
+        }
+
+        Qsub.SetDims(bsize, kp);
+        Qsub_mask.SetDims(bsize, kp);
       }
-      ifs.close();
+      SetNumThreads(Param::NUM_THREADS);
+
       mpc.ProfilerPopState(false); // file_io
 
       remainder = n1 % bsize;
       if (remainder > 0) {
+        ifs.open(cache(pid, "pca_input").c_str(), ios::in | ios::binary);
+        ifs.seekg(n1/bsize * (pid > 0 ? 2 : 1) * (2 * bsize * m3 * mpc.ElemBytes()));
+
+        for (int i = 0; i < remainder; i++) {
+          mpc.BeaverReadFromFile(g[i], g_mask[i], ifs, m3);
+          mpc.BeaverReadFromFile(miss[i], miss_mask[i], ifs, m3);
+          mpc.BeaverFlipBit(miss[i], miss_mask[i]);
+
+          Qsub[i] = Q[(n1/bsize)*bsize + i];
+          Qsub_mask[i] = Q_mask[(n1/bsize)*bsize + i];
+        }
+
+        ifs.close();
+
         g.SetDims(remainder, m3);
         g_mask.SetDims(remainder, m3);
         miss.SetDims(remainder, m3);

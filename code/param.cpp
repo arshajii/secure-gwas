@@ -27,7 +27,7 @@ bool Param::ParseFile(const char *param_file) {
     if (k[0] == '#') { // Comments
       getline(pfile, v);
       continue;
-    } 
+    }
 
     getline(pfile, v);
 
@@ -173,6 +173,7 @@ long Param::NUM_COVS = 10;
 long Param::PITER_BATCH_SIZE = 100;
 long Param::PAR_THRES = 50;
 long Param::NUM_THREADS = 20;
+long Param::IO_THREADS = 20;
 
 bool Param::SKIP_QC = false;
 bool Param::PROFILER = true;
